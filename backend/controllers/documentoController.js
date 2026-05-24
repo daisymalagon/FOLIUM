@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 // ── Configuración de Multer ──────────────────────────────────────────────────
 const almacenamiento = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename:    (req, file, cb) => {
+  filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${uuidv4()}${ext}`);
   }
@@ -54,7 +54,6 @@ exports.listar = async (req, res, next) => {
 
     const params = [];
 
-    // Filtro por rol: lector y colaborador solo ven sus propios documentos
     if (req.usuario.rol !== 'admin') {
       params.push(req.usuario.id);
       consulta += ` AND d.usuario_id = $${params.length}`;
@@ -85,7 +84,9 @@ exports.listar = async (req, res, next) => {
 
     const { rows } = await db.query(consulta, params);
     res.json({ exito: true, datos: rows });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ── Subir documento ──────────────────────────────────────────────────────────
@@ -99,43 +100,76 @@ exports.subir = async (req, res, next) => {
     const { rows } = await db.query(
       `INSERT INTO documentos (nombre, ruta, tipo_mime, categoria_id, usuario_id, descripcion, autor)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.file.originalname, req.file.filename, req.file.mimetype,
-       categoriaId || null, req.usuario.id, descripcion || null, req.usuario.nombre]
+      [
+        req.file.originalname,
+        req.file.filename,
+        req.file.mimetype,
+        categoriaId || null,
+        req.usuario.id,
+        descripcion || null,
+        req.usuario.nombre
+      ]
     );
 
     const documento = rows[0];
 
-    // Asociar etiquetas si se enviaron
     if (etiquetas) {
       const lista = JSON.parse(etiquetas);
       for (const nombre of lista) {
-        // Crear etiqueta si no existe
         const et = await db.query(
-          `INSERT INTO etiquetas (nombre) VALUES ($1)
+          `INSERT INTO etiquetas (nombre)
+           VALUES ($1)
            ON CONFLICT (nombre) DO UPDATE SET nombre=EXCLUDED.nombre RETURNING id`,
           [nombre.trim()]
         );
+
         await db.query(
-          'INSERT INTO documento_etiqueta (documento_id, etiqueta_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+          `INSERT INTO documento_etiqueta (documento_id, etiqueta_id)
+           VALUES ($1,$2)
+           ON CONFLICT DO NOTHING`,
           [documento.id, et.rows[0].id]
         );
       }
     }
 
+    await db.query(
+      `INSERT INTO log_actividad (usuario_id, documento_id, accion, detalle)
+       VALUES ($1,$2,$3,$4)`,
+      [req.usuario.id, documento.id, 'SUBIDA', `Subió el documento: ${req.file.originalname}`]
+    );
+
     res.status(201).json({ exito: true, datos: documento });
-  } catch (err) { next(err); }
+
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ── Eliminar documento ───────────────────────────────────────────────────────
 exports.eliminar = async (req, res, next) => {
   try {
-    // Solo el dueño o el admin pueden eliminar
-    const { rows } = await db.query('SELECT usuario_id FROM documentos WHERE id=$1', [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ mensaje: 'Documento no encontrado.' });
+    const { rows } = await db.query(
+      'SELECT usuario_id FROM documentos WHERE id=$1',
+      [req.params.id]
+    );
+
+    if (!rows[0])
+      return res.status(404).json({ mensaje: 'Documento no encontrado.' });
+
     if (req.usuario.rol !== 'admin' && rows[0].usuario_id !== req.usuario.id)
       return res.status(403).json({ mensaje: 'No tienes permiso para eliminar este documento.' });
 
     await db.query('DELETE FROM documentos WHERE id=$1', [req.params.id]);
+
+    await db.query(
+      `INSERT INTO log_actividad (usuario_id, documento_id, accion, detalle)
+       VALUES ($1,$2,$3,$4)`,
+      [req.usuario.id, req.params.id, 'ELIMINACION', `Eliminó el documento ID: ${req.params.id}`]
+    );
+
     res.json({ exito: true, mensaje: 'Documento eliminado correctamente.' });
-  } catch (err) { next(err); }
+
+  } catch (err) {
+    next(err);
+  }
 };

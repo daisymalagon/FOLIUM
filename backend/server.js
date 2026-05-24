@@ -16,6 +16,7 @@ app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/documentos', require('./routes/documentos'));
 app.use('/api/categorias', require('./routes/categorias'));
 app.use('/api/etiquetas',  require('./routes/etiquetas'));
+app.use('/api/usuarios', require('./routes/usuarios'));
 
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
