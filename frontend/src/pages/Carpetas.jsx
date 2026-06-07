@@ -25,7 +25,7 @@ function Carpetas() {
   useEffect(() => {
     cargarCarpetas();
     if (esAdmin) cargarUsuarios();
-  }, []);
+  }, [esAdmin]);
 
   const cargarCarpetas = async () => {
     try {
