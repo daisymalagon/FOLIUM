@@ -526,7 +526,7 @@ const s = {
                  border:'1px solid #EDE9FE', fontSize:'14px', marginTop:'4px' },
   labelCampo:  { fontSize:'13px', fontWeight:'bold', color:'#7C3AED' },
   rolesInfo:   { background:'#F5F3FF', borderRadius:'10px', padding:'16px', marginTop:'16px' },
-  badgeAdmin:  { background:'linear-gradient(135deg,#7C3AED,#2E6DA4)',
+  badgeAdminRol:  { background:'linear-gradient(135deg,#7C3AED,#2E6DA4)',
                  color:'white', padding:'3px 10px', borderRadius:'10px', fontSize:'12px' },
   badgeCol:    { background:'#2E6DA4', color:'white',
                  padding:'3px 10px', borderRadius:'10px', fontSize:'12px' },
